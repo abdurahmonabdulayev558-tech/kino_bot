@@ -5,10 +5,10 @@ const path = require('path');
 // ==========================================
 // 1. KONFIGURATSIYA VA TOKEN
 // ==========================================
-const token = 'BOT_TOKENINGIZNI_SHU_YERGA_YOZING';
+const token = '8625932620:AAFE1da95Vp8UZJtmuPYOxEPhzuviCCVsZQ';
 const bot = new TelegramBot(token, { polling: true });
-const ADMIN_ID = 7917949181; // Sizning ID raqamingiz
-
+// 1-id sizniki, 2-id sherigingizniki
+const ADMIN_IDS = [7917949181, 1039979240]; // Ikkinchi ID raqamni shu yerga yozing
 // ==========================================
 // 2. MA'LUMOTLAR BAZASI BILAN ISHLASH
 // ==========================================
@@ -217,3 +217,4 @@ bot.on('callback_query', async (query) => {
 });
 
 console.log("🔥 Professional bot 24/7 rejimida ishlamoqda!");
+
