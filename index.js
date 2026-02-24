@@ -4,7 +4,7 @@ const fs = require('fs');
 // ==========================================
 // 1. KONFIGURATSIYA VA BAZA
 // ==========================================
-const token = '8625932620:AAHDPov-MZgUaqD2Fv5U5FUdZErDZ4J-vVQ'; // Tokenni albatta yangilang!
+const token = '8625932620:AAEudg_DnYj2vsrYqqL7bVTGiKF2Y2G_u9E'; // Tokenni albatta yangilang!
 const bot = new TelegramBot(token, { polling: true });
 const ADMIN_IDS = [7917949181, 1039979240]; // Adminlar ro'yxati
 
@@ -193,3 +193,4 @@ bot.on('callback_query', async (q) => {
 });
 
 console.log("🚀 Professional Gigant Bot ishga tushdi!");
+
