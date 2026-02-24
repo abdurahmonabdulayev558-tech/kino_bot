@@ -1,52 +1,40 @@
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 
-// ==========================================
-// 1. SOZLAMALAR VA ADMINLAR
-// ==========================================
-const token = '8625932620:AAEv8kIkZ3wA7JmGx2FRqe0oI5pW49Z2zyI'; // Tokenni yangilang!
-const bot = new TelegramBot(token, { polling: true });
-const ADMIN_IDS = [7917949181,1039979240]; // O'z ID-ingizni kiriting
-
-const DB_FILES = {
-    users: 'users.json',
-    kinolar: 'kinolar.json',
-    kanallar: 'kanallar.json',
-    blacklist: 'blacklist.json'
-};
-
-// Funksiyalar (Tepada bo'lishi xatolarning oldini oladi)
-const loadDB = (f) => {
+// 1. ASOSIY BAZA VA FUNKSIYALAR
+function loadDB(f) {
     if (!fs.existsSync(f)) return f.includes('users') ? {} : [];
-    return JSON.parse(fs.readFileSync(f, 'utf8'));
-};
-const saveDB = (f, d) => fs.writeFileSync(f, JSON.stringify(d, null, 4));
-const isAdmin = (id) => ADMIN_IDS.includes(id);
+    try { return JSON.parse(fs.readFileSync(f, 'utf8')); } 
+    catch (e) { return f.includes('users') ? {} : []; }
+}
+function saveDB(f, d) { fs.writeFileSync(f, JSON.stringify(d, null, 4)); }
 
-// ==========================================
-// 2. MAJBURIY OBUNA (PREMIUM)
-// ==========================================
+// 2. SOZLAMALAR (Tokenni yangilang!)
+const token = '8625932620:AAHbVie8op50HohFVG38tnSfsVXPiRUlH9I'; 
+const bot = new TelegramBot(token, { polling: true });
+const ADMIN_IDS = [7917949181,1039979240]; 
+
+const DB_FILES = { users: 'users.json', kinolar: 'kinolar.json', kanallar: 'kanallar.json' };
+
+// 3. MAJBURIY OBUNA (AVTOMATIK)
 async function checkMembership(userId) {
-    if (isAdmin(userId)) return true;
+    if (ADMIN_IDS.includes(userId)) return true;
     const channels = loadDB(DB_FILES.kanallar);
     if (channels.length === 0) return true;
-
     for (const ch of channels) {
         try {
             const res = await bot.getChatMember(ch.id, userId);
-            if (['left', 'kicked', 'restricted'].includes(res.status)) return false;
+            if (['left', 'kicked'].includes(res.status)) return false;
         } catch (e) { continue; }
     }
     return true;
 }
 
-// ==========================================
-// 3. KLAVIATURALAR
-// ==========================================
+// 4. PREMIMUM KLAVIATURALAR
 const mainMenu = {
     reply_markup: {
         keyboard: [
-            ['🔍 Kino qidirish', '🎲 Tasodifiy'],
+            ['🔍 Kino qidirish', '🎲 Tasodifiy kino'],
             ['📊 Statistika', '👤 Profil'],
             ['📢 Kanalimiz', '👨‍💻 Admin Panel']
         ],
@@ -54,27 +42,10 @@ const mainMenu = {
     }
 };
 
-const adminMenu = {
-    reply_markup: {
-        keyboard: [
-            ['📢 Reklama yuborish', '➕ Kanal qo\'shish'],
-            ['🚫 Bloklash', '📑 Bazani yuklash'],
-            ['🏠 Asosiy menyu']
-        ],
-        resize_keyboard: true
-    }
-};
-
-// ==========================================
-// 4. ASOSIY LOGIKA (MONSTER MODE)
-// ==========================================
+// 5. MONSTER LOGIKA
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
-
-    // Blacklist tekshiruvi
-    const blacklist = loadDB(DB_FILES.blacklist);
-    if (blacklist.includes(chatId)) return;
 
     // Foydalanuvchini ro'yxatga olish
     let users = loadDB(DB_FILES.users);
@@ -83,87 +54,70 @@ bot.on('message', async (msg) => {
         saveDB(DB_FILES.users, users);
     }
 
-    // --- ADMIN PANEL VA XAVFSIZLIK ---
-    if (text === '👨‍💻 Admin Panel') {
-        if (isAdmin(chatId)) {
-            return bot.sendMessage(chatId, "🛠 **Admin Panelga xush kelibsiz!**\nQuyidagi tugmalardan foydalaning:", adminMenu);
-        } else {
-            return bot.sendMessage(chatId, "❌ **Kirish taqiqlangan!**\nSiz bot administratori emassiz.");
-        }
-    }
-
-    // --- VIDEO YUBORISH (FAQAT ADMIN) ---
-    if (msg.video) {
-        if (isAdmin(chatId)) {
-            const cap = msg.caption;
-            if (!cap) return bot.sendMessage(chatId, "⚠️ Iltimos, videoga 'kod nomi' ko'rinishida izoh yozing!");
-            
-            const [code, ...nameParts] = cap.split(' ');
-            let kinolar = loadDB(DB_FILES.kinolar);
-            
-            // Kod bandligini tekshirish
-            if (kinolar.find(k => k.code === code)) return bot.sendMessage(chatId, "❌ Bu kod band! Boshqa kod tanlang.");
-
-            kinolar.push({ code, name: nameParts.join(' '), file_id: msg.video.file_id });
-            saveDB(DB_FILES.kinolar, kinolar);
-            return bot.sendMessage(chatId, `✅ **Kino saqlandi!**\n🆔 Kod: ${code}\n🎬 Nomi: ${nameParts.join(' ')}`);
-        } else {
-            return bot.sendMessage(chatId, "⚠️ **Sizda ruxsat yo'q!**\nVideo yubormang, aks holda bloklanasiz.");
-        }
-    }
-
-    // --- MAJBURIY OBUNA TEKSHIRUVI ---
+    // Obuna tekshiruvi (A'zo bo'lmasa bloklaydi)
     const isMember = await checkMembership(chatId);
     if (!isMember && text !== '/start') {
-        const chans = loadDB(DB_FILES.kanallar);
-        const inlineBtn = chans.map(c => [{ text: c.name, url: c.link }]);
-        inlineBtn.push([{ text: "✅ Tekshirish", callback_data: "verify" }]);
-        return bot.sendMessage(chatId, "⛔️ **To'xtang!** Botdan foydalanish uchun kanallarimizga a'zo bo'ling:", {
-            reply_markup: { inline_keyboard: inlineBtn }
+        return bot.sendMessage(chatId, "💎 **Botimiz premium!**\n\nDavom etish uchun rasmiy kanalga a'zo bo'ling:", {
+            reply_markup: { inline_keyboard: [[{ text: "📢 Kanalga a'zo bo'lish", url: "https://t.me/KinoLar_Uz" }], [{ text: "✅ Tekshirish", callback_data: "verify" }]] }
         });
     }
 
-    // --- TUGMALAR ---
+    // --- ADMIN KOMANDALARI (MAXFIY) ---
+    if (text === '👨‍💻 Admin Panel' && ADMIN_IDS.includes(chatId)) {
+        return bot.sendMessage(chatId, "🚀 **Monster Admin Panel**\n\nBarcha boshqaruv qo'lingizda:", {
+            reply_markup: { keyboard: [['📢 Reklama tarqatish', '➕ Kanal qo\'shish'], ['🏠 Asosiy menyu']], resize_keyboard: true }
+        });
+    }
+
+    // Video yuborilsa (Faqat admin uchun kino qo'shish)
+    if (msg.video && ADMIN_IDS.includes(chatId)) {
+        const cap = msg.caption;
+        if (!cap) return bot.sendMessage(chatId, "⚠️ Videoga 'kod nomi' deb izoh yozing!");
+        const [code, ...name] = cap.split(' ');
+        let kinolar = loadDB(DB_FILES.kinolar);
+        kinolar.push({ code, name: name.join(' '), file_id: msg.video.file_id });
+        saveDB(DB_FILES.kinolar, kinolar);
+        return bot.sendMessage(chatId, `✅ Kino qo'shildi.**\n🆔 Kod: ${code}`);
+    }
+
+    // --- FOYDALANUVCHI TUGMALARI ---
     if (text === '/start' || text === '🏠 Asosiy menyu') {
-        return bot.sendMessage(chatId, `🌟 **Assalomu alaykum, ${msg.from.first_name}!**\n\nKino kodini yuboring yoki quyidagi menyudan foydalaning:`, mainMenu);
+        return bot.sendMessage(chatId, `Assalomu alaykum, ${msg.from.first_name}! 👋\n\nKino kodini yuboring va tomosha qiling!`, mainMenu);
     }
 
     if (text === '📊 Statistika') {
         const u = Object.keys(loadDB(DB_FILES.users)).length;
         const k = loadDB(DB_FILES.kinolar).length;
-        return bot.sendMessage(chatId, `📊 **Bot Statistikasi:**\n\n👥 Foydalanuvchilar: ${u}\n🎬 Kinolar bazasi: ${k}\n🛡 Holati: Faol`);
+        return bot.sendMessage(chatId, `👑 **Bot Holati:**\n\n👥 Azolar: ${u} ta\n🎬 Kinolar: ${k} ta\n📡 Server: Online`);
     }
 
     if (text === '👤 Profil') {
-        return bot.sendMessage(chatId, `👤 **Profilingiz:**\n\n🆔 ID: \`${chatId}\`\n🎭 Ism: ${msg.from.first_name}\n📅 A'zo bo'ldingiz: ${users[chatId].date}`);
+        return bot.sendMessage(chatId, `👤 **Profilingiz:**\n\n🆔 ID: \`${chatId}\`\n🎭 Ism: ${msg.from.first_name}\n📅 Ro'yxatdan o'tgan vaqt: ${users[chatId].date}`);
     }
 
-    // --- KOD BILAN QIDIRISH (SMART) ---
+    // --- KOD BILAN QIDIRISH (TEZKOR) ---
     if (text && !isNaN(text)) {
         const kinolar = loadDB(DB_FILES.kinolar);
         const k = kinolar.find(x => x.code === text);
         if (k) {
             return bot.sendVideo(chatId, k.file_id, { 
-                caption: `🎬 **${k.name}**\n\n🆔 Kodi: ${k.code}\n✅ https://t.me/iltifotligim` 
+                caption: `🎬 **${k.name}**\n\n🆔 Kod: ${k.code}\n✅ @Kinolar_borku_bot botidan topildi.` 
             });
-        } else {
-            return bot.sendMessage(chatId, "😔 **Afsus!** Bu kod bilan kino topilmadi.\nIltimos, kodni to'g'ri yozganingizni tekshiring.");
         }
+        return bot.sendMessage(chatId, "😔 **Topilmadi!**\nBunday kodli kino hali bazamizda yo'q.");
     }
 });
 
-// Inline tugma uchun
+// A'zolikni tasdiqlash
 bot.on('callback_query', async (q) => {
     if (q.data === 'verify') {
-        const ok = await checkMembership(q.from.id);
-        if (ok) {
+        if (await checkMembership(q.from.id)) {
             bot.deleteMessage(q.message.chat.id, q.message.message_id);
-            bot.sendMessage(q.message.chat.id, "✅ **Rahmat!** A'zolik tasdiqlandi. Kino kodini yuboring.", mainMenu);
+            bot.sendMessage(q.message.chat.id, "✅ **Tasdiqlandi!** Marhamat, kino kodini yuboring.", mainMenu);
         } else {
-            bot.answerCallbackQuery(q.id, { text: "❌ Hali a'zo emassiz!", show_alert: true });
+            bot.answerCallbackQuery(q.id, { text: "❌ Kanalga a'zo emassiz!", show_alert: true });
         }
     }
 });
 
 console.log("🚀 Professional Monster Bot ishga tushdi!");
-
