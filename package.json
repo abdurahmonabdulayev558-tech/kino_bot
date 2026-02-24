@@ -1,7 +1,6 @@
 {
   "name": "kino_bot",
   "version": "1.0.0",
-  "description": "Professional Kino Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
