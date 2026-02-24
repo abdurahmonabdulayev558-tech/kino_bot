@@ -144,7 +144,7 @@ bot.on('message', async (msg) => {
         const k = kinolar.find(x => x.code === text);
         if (k) {
             return bot.sendVideo(chatId, k.file_id, { 
-                caption: `🎬 **${k.name}**\n\n🆔 Kodi: ${k.code}\n✅ @SizningKanal` 
+                caption: `🎬 **${k.name}**\n\n🆔 Kodi: ${k.code}\n✅ https://t.me/iltifotligim` 
             });
         } else {
             return bot.sendMessage(chatId, "😔 **Afsus!** Bu kod bilan kino topilmadi.\nIltimos, kodni to'g'ri yozganingizni tekshiring.");
@@ -166,3 +166,4 @@ bot.on('callback_query', async (q) => {
 });
 
 console.log("🚀 Professional Monster Bot ishga tushdi!");
+
